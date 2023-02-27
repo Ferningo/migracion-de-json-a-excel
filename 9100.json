@@ -1,0 +1,114 @@
+{
+    "ConfMixEngine": {
+        "DefaultParameters": {
+            "database": "af_ods"
+        },
+        "Queries": [
+            {
+                "alias": "tbl_factura_fact",
+                "query": "select *,substr(cast(fch_alta_oper as string),1,10) fch_movimiento,txt_branch_sec_doc_oper num_contr from he2_mx_mae_fact_oper_factura_dro where fch_corte_datos = '$fch_corte_datos' and num_ver_proc = 0 and flg_acep = 'S'"
+            },
+            {
+                "alias": "tbl_contr_fact",
+                "query": "select cod_branch,trim(num_oper) num_oper,cod_divisa from he2_mx_mae_fact_oper_contrato_dro where fch_corte_datos = '$fch_corte_datos' and num_ver_proc = 0 and flg_acep = 'S'"
+            },
+            {
+                "alias": "tbl_factura_contr_fact",
+                "query": "select a.*,b.cod_divisa from tbl_factura_fact a join tbl_contr_fact b on a.cod_branch=b.cod_branch and trim(a.num_oper)=trim(b.num_oper)"
+            },
+            {
+                "comment": "num_contr, cod_origen, cod_signo_movimiento,cod_tipo_movimiento, imp_movimiento_mo, fch_movimiento",
+                "alias": "tbl_mov_rg2",
+                "query": "select num_contr ,'RG2' cod_origen, 'D' cod_signo_movimiento,'RG2' cod_tipo_movimiento,imp_oper imp_movimiento_mo,fch_movimiento,cod_divisa from tbl_factura_contr_fact where imp_oper<>0 and fch_movimiento='$fch_corte_datos'"
+            },
+            {
+                "comment": "num_contr, cod_origen, cod_signo_movimiento,cod_tipo_movimiento, imp_movimiento_mo, fch_movimiento",
+                "alias": "tbl_mov_rg6",
+                "query": "select num_contr ,'RG6' cod_origen, 'H' cod_signo_movimiento,'RG6' cod_tipo_movimiento,num_discamt imp_movimiento_mo,fch_movimiento,cod_divisa from tbl_factura_contr_fact where num_discamt<>0 and fch_movimiento='$fch_corte_datos'"
+            },
+            {
+                "comment": "num_contr, cod_origen, cod_signo_movimiento,cod_tipo_movimiento, imp_movimiento_mo, fch_movimiento",
+                "alias": "tbl_mov_rg7",
+                "query": "select num_contr ,'RG7' cod_origen, 'D' cod_signo_movimiento,'RG7' cod_tipo_movimiento,NUM_INTAMT imp_movimiento_mo,fch_movimiento,cod_divisa from tbl_factura_contr_fact where NUM_INTAMT<>0 and fch_movimiento='$fch_corte_datos'"
+            },
+            {
+                "alias": "tbl_factura_fact_ant_pre",
+                "query": "select txt_branch_sec_doc_oper ,NUM_CCYPAYAMT imp_cobro,fch_corte_datos from he2_mx_mae_fact_oper_factura_dro where fch_corte_datos < '$fch_corte_datos' and fch_corte_datos >= date_add('$fch_corte_datos',-6) and num_ver_proc = 0 and flg_acep = 'S'"
+            },
+            {
+                "alias": "tbl_factura_fact_ant",
+                "query": "select * from (SELECT *, row_number() over (partition by txt_branch_sec_doc_oper order by fch_corte_datos desc) cnt from tbl_factura_fact_ant_pre) a where a.cnt=1"
+            },
+            {
+                "comment": "num_contr, cod_origen, cod_signo_movimiento, (faltaba el cod_tipo_movimiento), imp_movimiento_mo, fch_movimiento",
+                "alias": "tbl_mov_rg3",
+                "query": "select a.txt_branch_sec_doc_oper num_contr,'RG3' cod_origen, 'H' cod_signo_movimiento, 'RG3' cod_tipo_movimiento, coalesce(imp_cobro,0)-coalesce(NUM_CCYPAYAMT,0) imp_movimiento_mo, a.fch_corte_datos fch_movimiento, a.cod_divisa from tbl_factura_contr_fact a left join tbl_factura_fact_ant b on a.txt_branch_sec_doc_oper=b.txt_branch_sec_doc_oper"
+            },
+            {
+                "alias": "tbl_mov_factoraje",
+                "query": "select * from tbl_mov_rg3 union all select * from tbl_mov_rg7 union all select * from tbl_mov_rg6 union all select * from tbl_mov_rg2"
+            },
+            {
+                "alias": "tbl_mae",
+                "database": "dm_ods",
+                "query": "select num_contr, cod_per, COD_PER_OPER_ACTUAL,COD_MASTER_ID_PER from he2_mx_mae_gral_contr_$type_execution where fch_corte_datos = '$fch_corte_datos' and num_ver_proc = '0' and cod_sistema=5"
+            },
+            {
+                "alias": "tbl_mov_factoraje_pre",
+                "query": "select a.*, 1 num_extracto_cta, b.cod_per, coalesce(b.COD_PER_OPER_ACTUAL,b.cod_per) COD_PER_OPER_ACTUAL, coalesce(b.COD_MASTER_ID_PER,b.cod_per) COD_MASTER_ID_PER,cast(from_unixtime(UNIX_TIMESTAMP()) AS TIMESTAMP) as fch_time_carga_datos from tbl_mov_factoraje a left join tbl_mae b on a.num_contr = b.num_contr"
+            },
+            {
+                "alias": "tcdt081_paso1",
+                "query": "select cod_divisa_origen, num_cambfix, fch_camb_divisa, cod_tipo_cotiz, cod_ent from he2_mx_cat_tpo_camb_$type_execution where fch_corte_datos ='$fch_corte_datos' and num_ver_proc = '0' and flg_acep = 'S'",
+                "coalesce": 1
+            },
+            {
+                "alias": "tcdt081_paso2",
+                "query": "select cod_divisa_origen, num_cambfix, fch_camb_divisa from tcdt081_paso1 where cod_ent='0014' and cod_tipo_cotiz='S' and fch_camb_divisa='$fch_corte_datos'",
+                "coalesce": 1
+            },
+            {
+                "alias": "tbl_cat_interno",
+                "query": "select cod_cve_rgtro, dsc_gral txt_desc_tipo_movimiento from he1_mx_cat_interno_$type_execution where fch_corte_datos = '$fch_corte_datos' and num_ver_proc='0' and cod_catalogo in ('0174')",
+                "coalesce": 1
+            },
+            {
+                "alias": "tbl_final",
+                "query": "select a.*, txt_desc_tipo_movimiento from tbl_mov_factoraje_pre a left join tbl_cat_interno b on a.cod_tipo_movimiento = b.cod_cve_rgtro"
+            },
+            {
+                "alias": "he2_mx_det_mov_oper_activo_$type_execution",
+                "query": "select num_contr,txt_desc_tipo_movimiento , num_extracto_cta,cod_per, COD_PER_OPER_ACTUAL, COD_MASTER_ID_PER, imp_movimiento_mo imp_mov_mo,imp_movimiento_mo*coalesce(num_cambfix,1) imp_mov_ml,coalesce(num_cambfix,1) num_val_tipo_camb_fch_mov,cod_divisa,cod_origen,cod_signo_movimiento,cod_tipo_movimiento,fch_movimiento fch_cont_operacion, fch_movimiento fch_operacion,cast(current_timestamp as timestamp) as fch_time_carga_datos, cast(null as string) as cod_tipo_orig_dato, cast(null as string) as txt_version_datos_utilizados from tbl_final a left join tcdt081_paso2 b on a.cod_divisa=b.cod_divisa_origen where imp_movimiento_mo is not null and imp_movimiento_mo<>0",
+                "database": "dm_ods",
+                "interfaceCode": "9009",
+                "interfaceControl": "CM, TABLE",
+                "saveHive": true,
+                "applyMovePartition": true,
+                "applyCleanData": true,
+                "versionField": "txt_version_datos_utilizados",
+                "searchVersion": [
+                    "af_ods.he2_mx_mae_fact_oper_factura_dro",
+                    "af_ods.he2_mx_mae_fact_oper_contrato_dro",
+                    "af_ods.he2_mx_cat_tpo_camb_$type_execution"
+                ],
+                "partition": [
+                    {
+                        "name": "cod_sistema",
+                        "type": "Int",
+                        "value": "5"
+                    },
+                    {
+                        "name": "fch_corte_datos",
+                        "type": "String",
+                        "value": "'$fch_corte_datos'"
+                    },
+                    {
+                        "name": "num_ver_proc",
+                        "type": "Int",
+                        "value": "0"
+                    }
+                ]
+            }
+        ]
+    }
+}

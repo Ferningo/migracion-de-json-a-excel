@@ -1,0 +1,65 @@
+{
+    "ConfMixEngine": {
+        "DefaultParameters": {
+            "database": "af_ods"
+        },
+        "Queries": [
+            {
+                "alias": "tbl_mov_alt",
+                "query": "select concat(cod_prod,num_cta,id_dig_cta) num_contr, if(fch_contable_mov='0001-01-01',cast(null as string), fch_contable_mov) fch_cont_operacion , if(fch_oper_mov='0001-01-01',cast(null as string), fch_oper_mov) fch_operacion , if(fch_valor_mov='0001-01-01',cast(null as string), fch_valor_mov) fch_valor_mov, trim(cod_clacon) cod_tipo_movimiento,cod_clave_oper, num_recibe num_extracto_cta, imp_mov imp_mov_mo, imp_Mov*coalesce(num_val_tipo_camb,1) imp_Mov_ml, num_val_tipo_camb num_val_tipo_camb_fch_mov, num_val_tipo_camb tc_mxn_tc81, flg_retroceso, fch_timestamp_oper from he2_mx_mae_alt_mov_dro where fch_corte_datos = '$fch_odate' and num_ver_proc = '0'"
+            },
+            {
+                "alias": "tbl_mae",
+                "database": "dm_ods",
+                "query": "select num_contr, cod_per, cod_divisa, COD_PER_OPER_ACTUAL,COD_MASTER_ID_PER from he2_mx_mae_gral_contr_$type_execution where fch_corte_datos = '$fch_corte_datos' and num_ver_proc = '0' and cod_sistema=12",
+                "repartition": 16
+            },
+            {
+                "alias": "tbl_final_2",
+                "query": "select a.*, cod_per, cod_divisa, coalesce(COD_PER_OPER_ACTUAL,cod_per) COD_PER_OPER_ACTUAL, coalesce(COD_MASTER_ID_PER,cod_per) COD_MASTER_ID_PER,cast(from_unixtime(UNIX_TIMESTAMP()) AS TIMESTAMP) as fch_time_carga_datos from tbl_mov_alt a left join tbl_mae b on a.num_contr = b.num_contr"
+            },
+            {
+                "alias": "tbl_cat_interno",
+                "query": "select cod_cve_rgtro, dsc_gral txt_desc_tipo_movimiento from he1_mx_cat_interno_$type_execution where fch_corte_datos = '$fch_corte_datos' and num_ver_proc='0' and cod_catalogo in ('0174')",
+                "coalesce": 1
+            },
+            {
+                "alias": "tbl_final",
+                "query": "select a.*, txt_desc_tipo_movimiento from tbl_final_2 a left join tbl_cat_interno b on a.cod_tipo_movimiento = b.cod_cve_rgtro"
+            },
+            {
+                "database": "dm_ods",
+                "alias": "he2_mx_det_mov_oper_activo_dro",
+                "query": "select * from tbl_final",
+                "coalesce": 1,
+                "applyCleanData": true,
+                "applyMovePartition": true,
+                "interfaceControl": "CM, TABLE",
+                "saveHive": true,
+                "interfaceCode": "9426",
+                "versionField": "txt_version_datos_utilizados",
+                "searchVersion": [
+                    "af_ods.he2_mx_mae_alt_mov_dro",
+                    "dm_ods.HE2_MX_MAE_PER_UNICA_dro"
+                ],
+                "partition": [
+                    {
+                        "name": "cod_sistema",
+                        "type": "Int",
+                        "value": "'12'"
+                    },
+                    {
+                        "name": "fch_corte_datos",
+                        "type": "String",
+                        "value": "'$fch_odate'"
+                    },
+                    {
+                        "name": "num_ver_proc",
+                        "type": "Int",
+                        "value": "'0'"
+                    }
+                ]
+            }
+        ]
+    }
+}

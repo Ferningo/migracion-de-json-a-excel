@@ -1,0 +1,124 @@
+{
+    "ConfMixEngine": {
+        "DefaultParameters": {
+            "database": "af_ods"
+        },
+        "Queries": [
+            {
+                "alias": "tbl_docpag_pre",
+                "query": "select cod_concepto_emision cod_clacon,cod_form_pago, cod_doc_pago, cod_empresa cod_ent,cod_operacion cod_oper,cod_prov cod_prove,flg_doc_conciliado,fch_corte_datos from af_ods.he2_mx_det_doc_pago_dro where fch_corte_datos= '$fch_corte_datos' and num_ver_proc = '0' and flg_acep='S'"
+            },
+            {
+                "alias": "tbl_docpag",
+                "query": "select * from tbl_docpag_pre where cod_clacon='C02' and flg_doc_conciliado = 'S'"
+            },
+            {
+                "alias": "tbl_doc_fac",
+                "query": "select cod_ent,cod_oper, cod_prove,cod_rmsa,cod_sub_rmsa,num_anio_ingr_reg ,cod_fact,dsc_tipo_pago,trim(cod_doc_pago) cod_doc_pago from he2_mx_mae_trsfdocfac_dro where fch_corte_datos= '$fch_corte_datos' and num_ver_proc = '0' and flg_acep='S'"
+            },
+            {
+                "alias": "tbl_doc_pag_fac",
+                "query": "select a.*,cod_rmsa,cod_sub_rmsa,num_anio_ingr_reg,cod_fact from tbl_docpag a left join tbl_doc_fac b on a.cod_ent=b.cod_ent and a.cod_oper=b.cod_oper and a.cod_prove=b.cod_prove and a.cod_form_pago=b.dsc_tipo_pago and a.cod_doc_pago=b.cod_doc_pago"
+            },
+            {
+                "alias": "tbl_factura_pre",
+                "query": "select cod_ent,cod_oper,cod_prove,cod_rmsa,cod_sub_rmsa,num_anio_ingr_reg,cod_fact,imp_nomi imp_mov_mo,flg_finan_fact,dsc_mcpago,fch_finan,fch_vto,cod_conto_altai,cod_mnda cod_divisa , lpad(trim(cod_conto_altai),12,0) NUM_CONTR from he2_mx_mae_tsffacturc_dro where fch_corte_datos= '$fch_corte_datos' and num_ver_proc = '0' and flg_acep='S'"
+            },
+            {
+                "alias": "tbl_factura",
+                "query": "select * from tbl_factura_pre where fch_finan<fch_vto and dsc_mcpago='1' and flg_finan_fact='S'"
+            },
+            {
+                "alias": "tbl_doc_pag_fac_factura",
+                "query": "select a.*, imp_mov_mo ,cod_conto_altai, cod_divisa,num_contr from tbl_doc_pag_fac a left join tbl_factura b on a.cod_ent=b.cod_ent and a.cod_oper=b.cod_oper and a.cod_prove=b.cod_prove and a.cod_sub_rmsa=b.cod_sub_rmsa and a.num_anio_ingr_reg=b.num_anio_ingr_reg and a.cod_fact=b.cod_fact"
+            },
+            {
+                "alias": "tbl_cliente",
+                "query": "select distinct dsc_buc_cli_confi cod_per,cod_ent from he2_mx_mae_tsfempresa_dro where fch_corte_datos= '$fch_corte_datos' and num_ver_proc = '0' and flg_acep='S'"
+            },
+            {
+                "alias": "tbl_pagos",
+                "query": "select a.fch_corte_datos, imp_mov_mo, 'K' cod_concepto, cod_clacon cod_tipo_movimiento, num_contr, cod_per, cod_divisa from tbl_doc_pag_fac_factura a left join tbl_cliente b on a.cod_ent=b.cod_ent"
+            },
+            {
+                "alias": "tbl_cobros_pre",
+                "query": "select cod_ent,fch_cobro_fact fch_cobro,cod_oper,cod_doc_cobro,cod_conce cod_clacon,flg_anul,dsc_mcconcil,fch_corte_datos from he2_mx_mae_tsfcobrosconf_dro where fch_corte_datos = '$fch_corte_datos' and num_ver_proc = '0' and flg_acep='S'"
+            },
+            {
+                "alias": "tbl_cobros",
+                "query": "select * from tbl_cobros_pre where flg_anul='0' and dsc_mcconcil='1' and cod_clacon IN('C06', 'C08', 'C09', 'C10', 'C21', 'C22', 'C25', 'C26', 'C14', 'C17', 'C19') and substr(fch_cobro,1,10)='$fch_corte_datos'"
+            },
+            {
+                "alias": "tbl_cobfac",
+                "query": "select cod_ent,cod_oper,cod_doc_cobro,cod_sub_rmsa,num_anio_ingr_reg,cod_prove,cod_fact from he2_mx_mae_trsfcobfac_dro where fch_corte_datos= '$fch_corte_datos' and num_ver_proc = '0' and flg_acep='S'"
+            },
+            {
+                "alias": "tbl_cobros_cobfac",
+                "query": "select a.*, b.cod_prove, b.cod_sub_rmsa , b.num_anio_ingr_reg,b.cod_fact from tbl_cobros a join tbl_cobfac b on a.cod_ent=b.cod_ent and a.cod_oper=b.cod_oper and a.cod_doc_cobro=b.cod_doc_cobro"
+            },
+            {
+                "alias": "tbl_cobros_cobfac_fact",
+                "query": "select a.*,b.cod_divisa,b.num_contr,b.imp_mov_mo from tbl_cobros_cobfac a join tbl_factura b on a.cod_ent=b.cod_ent and a.cod_oper=b.cod_oper and a.cod_prove=b.cod_prove and a.cod_sub_rmsa=b.cod_sub_rmsa and a.num_anio_ingr_reg=b.num_anio_ingr_reg and a.cod_fact=b.cod_fact"
+            },
+            {
+                "alias": "tbl_cobros_cobfac_fact_cli",
+                "query": "select a.fch_corte_datos, imp_mov_mo, if(cod_clacon IN('C21', 'C22'), 'I', if(cod_clacon in ('C08', 'C09', 'C25', 'C26'),'O','K'))cod_concepto, cod_clacon cod_tipo_movimiento, num_contr, cod_per, if(cod_divisa='MXP','MXN',cod_divisa) cod_divisa from tbl_cobros_cobfac_fact a join tbl_cliente b on a.cod_ent=b.cod_ent"
+            },
+            {
+                "alias": "tbl_final",
+                "query": "select * from tbl_cobros_cobfac_fact_cli"
+            },
+            {
+                "alias": "tbl_mae",
+                "database": "dm_ods",
+                "query": "select num_contr, cod_per, COD_PER_OPER_ACTUAL,COD_MASTER_ID_PER from he2_mx_mae_gral_contr_$type_execution where fch_corte_datos = '$fch_corte_datos' and num_ver_proc = '0' and cod_sistema=24"
+            },
+            {
+                "alias": "tbl_final_2",
+                "query": "select a.*, 1 num_extracto_cta, coalesce(b.COD_PER_OPER_ACTUAL,b.cod_per) COD_PER_OPER_ACTUAL, coalesce(b.COD_MASTER_ID_PER,b.cod_per) COD_MASTER_ID_PER,cast(from_unixtime(UNIX_TIMESTAMP()) AS TIMESTAMP) as fch_time_carga_datos from tbl_final a left join tbl_mae b on a.num_contr = b.num_contr"
+            },
+            {
+                "alias": "tbl_cat_interno",
+                "query": "select cod_cve_rgtro, dsc_gral txt_desc_tipo_movimiento from he1_mx_cat_interno_$type_execution where fch_corte_datos = '$fch_corte_datos' and num_ver_proc='0' and cod_catalogo in ('0174')",
+                "coalesce": 1
+            },
+            {
+                "alias": "tbl_final_3",
+                "query": "select a.*, txt_desc_tipo_movimiento from tbl_final_2 a left join tbl_cat_interno b on a.cod_tipo_movimiento = b.cod_cve_rgtro"
+            },
+            {
+                "database": "dm_ods",
+                "alias": "he2_mx_det_mov_oper_activo_dro",
+                "query": "select * from tbl_final_3",
+                "coalesce": 1,
+                "applyCleanData": true,
+                "applyMovePartition": true,
+                "interfaceControl": "CM, TABLE",
+                "saveHive": true,
+                "interfaceCode": "9427",
+                "versionField": "txt_version_datos_utilizados",
+                "searchVersion": [
+                    "af_ods.he2_mx_mae_alt_mov_dro",
+                    "dm_ods.HE2_MX_MAE_PER_UNICA_dro"
+                ],
+                "partition": [
+                    {
+                        "name": "cod_sistema",
+                        "type": "Int",
+                        "value": "'24'"
+                    },
+                    {
+                        "name": "fch_corte_datos",
+                        "type": "String",
+                        "value": "'$fch_odate'"
+                    },
+                    {
+                        "name": "num_ver_proc",
+                        "type": "Int",
+                        "value": "'0'"
+                    }
+                ]
+            }
+        ]
+    }
+}
