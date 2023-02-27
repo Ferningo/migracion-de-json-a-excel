@@ -2,16 +2,20 @@
 import json
 
 
-for json in arreglo_de_queries:
-    print(json['query'])
-
-
 def obtener_alias(archivo_json):
-    pass
+    arreglo_de_queries = cargar_arreglo_de_queries(archivo_json)
+    aliases = []
+    for json in arreglo_de_queries:
+        aliases.append(json['alias'])
+    return aliases
 
 
-def obtener_query(archivo_json):
-    pass
+def obtener_queries(archivo_json):
+    arreglo_de_queries = cargar_arreglo_de_queries(archivo_json)
+    queries = []
+    for json in arreglo_de_queries:
+        queries.append(json['query'])
+    return queries
 
 
 def cargar_arreglo_de_queries(ruta_del_archivo_json):
